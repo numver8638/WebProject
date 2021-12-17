@@ -1,0 +1,46 @@
+@import "color";
+
+.dropdown {
+    position: relative;
+    display: inline-block;
+
+    .dropdown-content {
+        display: none;
+        position: absolute;
+        background-color: $color-light;
+        border-radius: 0px 0px 3px 3px;
+        border-color: darken($color-light, 5%);
+
+        .dropdown-item {
+            min-width: 120px;
+            padding: 10px 20px;
+            display: block;
+            text-decoration: none;
+            color: $color-text;
+
+            &:hover {
+                background-color: darken($color-light, 5%);
+            }
+
+            &:last-child {        
+                border-radius: 0px 0px 3px 3px;
+            }
+        }
+
+        .dropdown-separator {
+            width: 100%;
+            margin: 0px 5px;
+            border: none;
+            border-top: 1px solid darken($color-light, 5%);
+        }
+    }
+
+    &:hover .dropdown-content {
+        display: block;
+    }
+}
+
+.navbar .dropdown-content {
+    inset: 50px 0px auto auto !important;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+}

@@ -1,0 +1,29 @@
+@import "color";
+
+$max-width: 960px;
+
+.container {
+    max-width: $max-width;
+    padding: 50px 80px;
+    margin: 0px auto;
+}
+
+%box {
+    padding: 30px 50px;
+}
+
+.box {
+    @extend %box;
+}
+
+.shadow-box {
+    @extend %box;
+    box-shadow: 0px 8px 16px 0px $color-shadow;
+}
+
+.danger-zone {
+    @extend %box;
+    border: 2px solid $color-error-border;
+    border-radius: 3px;
+    background-color: $color-error-background;
+}

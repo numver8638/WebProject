@@ -1,0 +1,22 @@
+@import "color";
+
+.alert {
+    padding: 10px 5px;
+    &.alert-info {
+        background-color: $color-info-background;
+        outline: 2px solid $color-info;
+        border-radius: 3px;
+    }
+
+    &.alert-warning {
+        background-color: $color-warning-background;
+        outline: 2px solid $color-warning;
+        border-radius: 3px;
+    }
+
+    &.alert-error {
+        background-color: $color-error-background;
+        outline: 2px solid $color-error;
+        border-radius: 3px;
+    }
+}

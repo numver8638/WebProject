@@ -1,0 +1,59 @@
+@import "color";
+
+%button-base {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 3px;
+
+    font-size: 12pt;
+
+    text-decoration: none;
+}
+
+@mixin button($name, $bg-color, $color: $white) {
+    .button-#{$name} {
+        @extend %button-base;
+        color: $color;
+        background-color: $bg-color;
+
+        &:hover {
+            background-color: darken($color: $bg-color, $amount: 5%);
+        }
+        
+        &:disabled {
+            color: desaturate($color: $color, $amount: 50%);
+            background-color: desaturate($color: $bg-color, $amount: 50%);
+        }
+    }
+}
+
+@mixin button-bordered($name, $color, $border-color) {
+    .button-bordered-#{$name} {
+        @extend %button-base;
+
+        color: $color;
+        background-color: $white;
+        border: 1px solid $border-color;
+
+        &:hover {
+            background-color: darken($color: $white, $amount: 5%);
+        }
+
+        &:disabled {
+            color: desaturate($color: $color, $amount: 50%);
+        }
+    }
+}
+
+@include button("primary", $color-primary);
+@include button("secondary", $white, $color-primary);
+@include button("info", $color-info);
+@include button("success", $color-success);
+@include button("warning", $color-warning);
+@include button("error", $color-error);
+
+@include button-bordered("primary", $color-primary, $color-primary-border);
+@include button-bordered("info", $color-info, $color-info-border);
+@include button-bordered("success", $color-success, $color-success-border);
+@include button-bordered("warning", $color-warning, $color-warning-border);
+@include button-bordered("error", $color-error, $color-error-border);

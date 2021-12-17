@@ -1,0 +1,48 @@
+@import "color";
+
+$navbar-height: 50px;
+
+.navbar-align-left {
+    justify-content: flex-start;
+}
+
+.navbar-align-right {
+    justify-content: flex-end;
+}
+
+.navbar {
+    position: sticky;
+    top: 0;
+    padding: 0;
+    background-color: $color-light;
+    display: flex;
+    align-items: center;
+    box-shadow: 0px 0px 8px 0px $color-shadow;
+    height: $navbar-height;
+
+    ul {
+        width: 100%;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .navbar-item, .navbar-title {
+        text-decoration: none;
+        list-style: none;
+        color: $color-text;
+        height: 50px;
+        padding: 0px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+
+        &:hover {
+            background-color: darken($color-light, 5%);
+        }
+
+        & > a {
+            text-decoration: none;
+            color: $color-text;
+        }
+    }
+}

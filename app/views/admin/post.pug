@@ -1,0 +1,161 @@
+extends ../layouts/base.pug
+
+include ../modal_mixin.pug
+
+block content
+    .container
+        .shadow-box
+            div.flex-row.justify-content-start
+                a.button-secondary.my-auto(href="/admin"): span.icon-arrow
+                h2 Post Settings
+            hr
+            label: h4 Post Information
+            div.mb-3
+                .input-group.mb-3
+                    label.input-label ID
+                    input(type="text", value=id, readonly=true)
+                .input-group.mb-3
+                    label.input-label Writer ID
+                    input(type="text", value=writer.id, readonly=true)
+                .input-group.mb-3
+                    label.input-label Writer UID
+                    input(type="text", value=writer.uid, readonly=true)
+                .input-group.mb-3
+                    label.input-label Writer Nickname
+                    input(type="text", value=writer.nickname, readonly=true)
+                .input-group.mb-3
+                    label.input-label Written Date
+                    input(type="text", value=writtenTime, readonly=true)
+                .input-group.mb-3
+                    label.input-label Updated Date
+                    input(type="text", value=updatedTime, readonly=true)
+            hr
+            div.mb-3
+                label: h4 Content
+                .post-body!= content
+            hr
+            div.mb-3
+                label: h4 Comments
+                div#comment-list
+                div.flex-row.justify-content-center
+                    button.button-secondary#comment-pagination-prev: span &laquo;
+                    label.my-auto.mx-3#comment-pagination-counter #
+                    button.button-secondary#comment-pagination-next: span &raquo;
+            hr
+            label: h4 Danger Zone
+            .danger-zone
+                .flex-row.justify-content-between
+                    label Delete Post
+                    if user.hasPermission(Permission.ADMIN_POSTS_UPDATE)
+                        button.button-error#delete-post-button(data-toggle="modal", data-target-modal="#delete-post-confirm-modal") Delete
+                    else
+                        p.alert.alert-info 게시글을 삭제할 권한이 없습니다.
+    +ConfirmModal('delete-comment-confirm-modal', "confirm-delete-button", "댓글을 삭제하겠습니까?", "Delete", true, "이 작업은 취소할 수 없습니다.")
+    +ConfirmModal('delete-post-confirm-modal', "confirm-delete-post-button", "게시글을 삭제하겠습니까?", "Delete", true, "이 작업은 취소할 수 없습니다.")
+    script(src="/static/scripts/modal.js")
+    script(src="/static/scripts/toast.js")
+    script(src="/static/scripts/utils.js")
+    script.
+        $(() => {
+            const comment_list = $("#comment-list");
+            const post_id = "#{id}";
+
+            const createHtml = (data) => {
+                let div = $("<div class='shadow-box mb-3 flex-row justify-content-start'>");
+                let image = $("<img width='70' height='70' class='rounded-image' style='margin: 0 10px auto 0;'>").attr("src", data.comment_writer_profile);
+                let group = $("<div>")
+                    .append($("<h5>").text(`${data.comment_writer} | ${new Date(data.comment_written_time).toDateString()}`))
+                    .append($("<p>").text(data.comment_content));
+                
+                div.append(image).append(group);
+
+                if (data.can_delete) {
+                    let buttonGroup = $("<div class='flex-column' style='margin: 0px 0px auto auto;'>");
+                    
+                    if (data.can_delete) {
+                        let deleteButton = $("<button class='button-secondary'><span class='icon-delete'></span></a>");
+                        deleteButton.data("comment-id", data.comment_id)
+                                    .attr("data-toggle", "modal")
+                                    .attr("data-target-modal", "#delete-comment-confirm-modal")
+                        buttonGroup.append(deleteButton);
+                    }
+
+                    div.append(buttonGroup);
+                }
+
+                return div;
+            };
+
+            const loadComments = () => {
+                let page = (comment_list.data("page") || 1) - 1;
+
+                $.getJSON("/api/posts/" + post_id + '/comments', {
+                    start: page * 5,
+                    count: 5   
+                }, (data) => {
+                    comment_list.empty();
+                    $("#comment-pagination-counter").text(page + 1);
+                    $("#comment-pagination-prev").attr("disabled", (page < 1));
+                    $("#comment-pagination-next").attr("disabled", (data.count < 10));
+
+                    if (data.start === data.count && data.start === 0) {
+                        comment_list.append($("<h5 style='text-align: center;'>댓글이 없습니다.</h5>"));
+                        return;
+                    }
+
+                    for (let comment of data.comments) {
+                        comment_list.append(createHtml(comment));
+                    }    
+                })
+                .fail(() => toast.warning("댓글을 가져오는데 실패하였습니다.", 5000))
+                .always(() => {
+                    loading_bar = $("#loading-bar").detach();
+                });
+            };
+
+            $("#comment-pagination-prev").on("click", () => {
+                let page = comment_list.data("page") || 1;
+                comment_list.data("page", page - 1);
+                loadComments();
+            });
+
+            $("#comment-pagination-next").on("click", () => {
+                let page = comment_list.data("page") || 0;
+                comment_list.data("page", page + 1);
+                loadComments();
+            });
+
+            $("#delete-comment-confirm-modal").on("modal.shown", (e, triggered) => {
+                $(e.target).data("comment-id", triggered.data("comment-id"));
+            });
+
+            $("#confirm-delete-button").on("click", () => {
+                const modal = $("#delete-comment-confirm-modal");
+                const comment_id = modal.data("comment-id");
+
+                if (!comment_id) { return; }
+
+                $.ajax("/api/posts/" + post_id + "/comments/" + comment_id, {
+                    method: "DELETE"
+                })
+                .done(() => {
+                    modal.toggleClass("active");
+                    toast.info("댓글을 삭제했습니다.", 3000);
+                    loadComments(true);
+                })
+                .fail(() => toast.error("댓글을 삭제하지 못했습니다.", 5000));
+            });
+
+            $("#confirm-delete-post-button").on("click", () => {
+                $.ajax("/api/posts/" + post_id, {
+                    method: "DELETE"
+                })
+                .done(() => {
+                    window.alert("게시글을 삭제하였습니다.");
+                    window.location.assign("/admin");
+                })
+                .fail(() => toast.error("게시글을 삭제하는데 실패하였습니다.", 5000))
+            });
+
+            loadComments();
+        });

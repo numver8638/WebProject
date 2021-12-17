@@ -1,0 +1,55 @@
+@import "color";
+
+.toast-overlay {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    z-index: 1000;
+    pointer-events: none; // overlay layer must ignore every events.
+
+    padding: 30px;
+
+    // Make elements over the overlay receive events.
+    & > * {
+        pointer-events: initial;
+    }
+}
+
+.toast {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    max-width: fit-content;
+    min-width: 300px;
+
+    margin: 20px 0px 0px auto;
+    padding: 20px 30px;
+    box-shadow: 0px 8px 16px 0px $color-shadow;
+
+    &.toast-info {
+        background-color: $color-primary-background;
+    }
+
+    &.toast-warning {
+        background-color: $color-warning-background;
+    }
+
+    &.toast-error {
+        background-color: $color-error-background;
+    }
+
+    .close {
+        background-color: transparent;
+        border: none;
+        font-size: 24px;
+        margin-top: auto;
+        margin-bottom: auto;
+        width: fit-content;
+        height: fit-content;
+        padding: 5px;
+
+        &:hover {
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+    }
+}

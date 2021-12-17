@@ -1,0 +1,22 @@
+
+@mixin icon($name, $url) {
+    .icon-#{$name}::before {
+        content: url($url);
+        display: inline;
+        width: 32px;
+        height: 32px;
+        margin-right: 5px;
+    }
+}
+
+@include icon("arrow", "/static/images/arrow.svg");
+@include icon("cursor", "/static/images/cursor.svg");
+@include icon("default-post", "/static/images/default_post.svg");
+@include icon("default-user", "/static/images/default_user.svg");
+@include icon("setting", "/static/images/gear.svg");
+@include icon("edit", "/static/images/pencil.svg");
+@include icon("position", "/static/images/position_fill.svg");
+@include icon("logout", "/static/images/power.svg");
+@include icon("search", "/static/images/search.svg");
+@include icon("like", "/static/images/star_fill.svg");
+@include icon("delete", "/static/images/trash.svg");

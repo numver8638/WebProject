@@ -1,0 +1,98 @@
+extends layouts/base.pug
+
+block content
+    .container
+        .shadow-box.flex-column
+            h2 Register
+            hr
+            .input-group.mb-3
+                label.input-label ID
+                input#id(type='text')
+                label.invalid-tooltip#id-tooltip 이미 사용중인 아이디입니다.
+                label.valid-tooltip 사용 가능한 아이디입니다.
+            .input-group.mb-3
+                label.input-label Password
+                input#password(type='password')
+                label.invalid-tooltip 비밀번호를 입력해주세요.
+            .input-group.mb-3
+                label.input-label Check Password
+                input#check-password(type='password')
+                label.invalid-tooltip#check-password-tooltip
+            .input-group.mb-3
+                label.input-label Nickname
+                input#nickname(type='text')
+                label.invalid-tooltip 닉네임을 입력해주세요.
+            .flex-row.justify-content-end
+                button.button-primary#register-button Register
+    script(src='/static/scripts/sha256.min.js')
+    script(src='/static/scripts/jsencrypt.min.js')
+    script(src="/static/scripts/utils.js")
+    script(src="/static/scripts/toast.js")
+    script.
+        $(() => {
+            const id = $("#id");
+            const id_tooltip = $("#id-tooltip");
+            const password = $("#password");
+            const check_password = $("#check-password");
+            const nickname = $("#nickname");
+            const check_password_tooltip = $("#check-password-tooltip");
+
+            id.on("change", () => {
+                let id_value = id.val();
+
+                id.parent().removeClass("invalid valid");
+
+                $.getJSON("/api/auth/check_id?id=" + id_value, (data) => {
+                    if (typeof(data.conflict) === "boolean") {
+                        id.parent().addClass(data.conflict ? "invalid" : "valid");
+                        id.data("valid", !data.conflict);
+                    }
+                });
+            });
+
+            check_password.on("change", () => {
+                check_password.parent().toggleClass("invalid", (password.val() !== check_password.val()));
+            });
+
+            $("#register-button").on("click", () => {
+                // Validate values
+                let id_valid = id.data("valid");
+
+                if (!id_valid) {
+                    id.focus();
+                    return;
+                }
+
+                if (password.val() !== check_password.val()) {
+                    check_password.focus();
+                    return;
+                }
+
+                let request_id = utils.generateID();
+
+                $.getJSON("/api/auth/request_token", { request_id: request_id }, function(data) {
+                    let crypt = new JSEncrypt();
+                    crypt.setKey(data["key"]);
+
+                    let encrypted_data = crypt.encrypt(JSON.stringify({
+                        "request_id": request_id,
+                        "user_id": id.val(),
+                        "user_pw": sha256(password.val()),
+                        "user_nickname": nickname.val(),
+                    }));
+
+                    $.ajax("/api/auth/register", {
+                        method: "POST",
+                        dataType: "JSON",
+                        contentType: "application/json",
+                        data: JSON.stringify({ data: encrypted_data, token: data.token }),
+                        success: function(data, status, xhr) {
+                            alert("회원 가입이 완료되었습니다.");
+
+                            window.location.assign("/");
+                        },
+                        error: (xhr, status, error) => toast.error(error)
+                    });
+                });
+            });
+        });

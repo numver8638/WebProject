@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;700&display=swap');
+
+$font-size: 12pt;
+
+$serif-fonts: 
+    'Noto Sans KR',
+    'Apple SD Gothic Neo', 'AppleGothic', // macOS
+    'Microsoft GothicNeo', 'Malgun Gothic', // Windows
+    sans-serif;
+
+$monospace-fonts:
+    'Menlo'     // macOS
+    'Consolas', // Windows
+    monospace;
+
+
+%font-base {
+    font-weight: 300;
+    font-size: $font-size;
+    font-family: $serif-fonts;
+}
+
+$headings: (
+    1: 2.5,
+    2: 2.0,
+    3: 1.6,
+    4: 1.2,
+    5: 1.0,
+    6: 0.8
+);
+@each $item in $headings {
+    h#{nth($item, 1)} {
+        @extend %font-base;
+        font-weight: 700;
+        font-size: $font-size * nth($item, 2);
+        margin: 0.5em 0;
+    }
+}
+
+div, p {
+    @extend %font-base;
+}
+
+small {
+    @extend %font-base;
+    font-size: $font-size * 0.8;
+}
+
+b, strong {
+    @extend %font-base;
+    font-weight: bold;
+}
+
+a {
+    @extend %font-base;
+    color: $color-text;
+    text-decoration: none;
+}
+
+pre, code {
+    @extend %font-base;
+    font-family: $monospace-fonts;
+}
+
+input[type=text], input[type=password], input[type=number], textarea {
+    @extend %font-base;
+}
+
+// h1,h2,h3,h4,h5,h6
+// p
+// small
+// b,strong
+// em,i
+// pre, code

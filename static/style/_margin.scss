@@ -1,0 +1,51 @@
+
+$margin-value: 4px;
+$padding-value: 4px;
+
+
+
+@mixin margin($name, $tags, $value) {
+    @for $i from 0 through 10 {
+        .#{$name}-#{$i} {
+            @each $tag in $tags {
+                margin-#{$tag}: $i * $value; 
+            }
+        }
+    }
+}
+
+@mixin padding($name, $tags, $value) {
+    @for $i from 0 through 10 {
+        .#{$name}-#{$i} {
+            @each $tag in $tags {
+                padding-#{$tag}: $i * $value; 
+            }
+        }
+    }
+}
+
+@include margin("mt", ("top"), $margin-value);
+@include margin("ml", ("left"), $margin-value);
+@include margin("mb", ("bottom"), $margin-value);
+@include margin("mr", ("right"), $margin-value);
+@include margin("mx", ("left", "right"), $margin-value);
+@include margin("my", ("top", "bottom"), $margin-value);
+@include margin("m", ("top", "right", "bottom", "left"), $margin-value);
+
+.mx-auto {
+    margin-right: auto;
+    margin-left: auto;
+}
+
+.my-auto {
+    margin-top: auto;
+    margin-bottom: auto;
+}
+
+@include padding("pt", ("top"), $padding-value);
+@include padding("pl", ("left"), $padding-value);
+@include padding("pb", ("bottom"), $padding-value);
+@include padding("pr", ("right"), $padding-value);
+@include padding("px", ("left", "right"), $padding-value);
+@include padding("py", ("top", "bottom"), $padding-value);
+@include padding("p", ("top", "right", "bottom", "left"), $padding-value);

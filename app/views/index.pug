@@ -1,0 +1,116 @@
+extends layouts/base.pug
+
+block content
+    .container
+        // search bar
+        .shadow-box.mb-3
+            .input-group.row
+                input#search(type='text', placeholder='Search...')
+                button#search-button: span.icon-search
+                label.invalid-tooltip 검색어를 입력해주세요.
+        // Content list
+        #content-list
+    script(src="/static/scripts/toast.js")
+    script(src="/static/scripts/utils.js")
+    script.
+        $(() => {
+            const content_list = $("#content-list");
+            const search = $("#search");
+            let loading_bar = $("<h5 id='loading-bar' style='text-align: center;'>Loading...</h5>");
+
+            const createHtml = (data) => {
+                let div = $("<div class='shadow-box mb-3'>");
+                let tags = $("<div>");
+                for (let tag of data.post_tags) {
+                    tags.append($("<label class='mr-1'>").text(`#${tag}`))
+                }
+                let a = $("<a>").attr("href", data.post_url);
+                a.append($("<h3>").text(data.post_name))
+                 .append($("<h5>").text(`${data.post_writer} | ${new Date(data.post_written_time).toDateString()}`))
+                 .append(tags);
+                
+                div.append(a);
+                return div;
+            };
+
+
+            const loadList = () => {
+               content_list.append(loading_bar);
+
+                $.getJSON("/api/posts", {
+                    start: content_list.data('count') || 0,
+                    count: 10
+                }, (data) => {
+                    if (data.start === data.count && data.start === 0) {
+                        content_list.append($("<h5 style='text-align: center;'>검색 결과가 없습니다.</h5>"));
+                        return;
+                    }
+
+                    for (let post of data.posts) {
+                        content_list.append(createHtml(post))
+                    }
+
+                    if (data.count > 0) {
+                        utils.observe(content_list.children().last()[0], loadList);
+                    }
+
+                    content_list.data('count', data.start + data.count);
+
+                })
+                .fail(() => toast.warning("게시물을 가져오는데 실패하였습니다.", 5000))
+                .always(() => {
+                    loading_bar = $("#loading-bar").detach()
+                });
+            };
+
+            const loadSearch = () => {
+               content_list.append(loading_bar);
+
+                $.getJSON("/api/posts/search", {
+                    keyword: content_list.data('keyword'),
+                    start: content_list.data('count') || 0,
+                    count: 10
+                }, (data) => {
+                    if (data.start === data.count && data.start === 0) {
+                        content_list.append($("<h5 style='text-align: center;'>검색 결과가 없습니다.</h5>"));
+                        return;
+                    }
+
+                    for (let post of data.posts) {
+                        content_list.append(createHtml(post));
+                    }
+
+                    if (data.count > 0) {
+                        utils.observe(content_list.children().last()[0], loadSearch);
+                    }
+
+                    content_list.data('count', data.start + data.count);
+                })
+                .fail(() => toast.warning("게시물을 가져오는데 실패하였습니다.", 5000))
+                .always(() => {
+                    loading_bar = $("#loading-bar").detach()
+                });
+            };
+
+            // Insert event handlers
+            search.on("keypress", (e) => {
+                if (e.keyCode == 13) {
+                    $("#search-button").click();
+                }
+            });
+
+            $("#search-button").on("click", () => {
+                let invalid = (search.val().length == 0);
+                search.parent().toggleClass("invalid", invalid);
+                if (invalid) { return; }
+
+                // reset content list
+                content_list.empty();
+                content_list.data('count', 0)
+                content_list.data('keyword', search.val());
+
+                loadSearch();
+            });
+
+            loadList();
+        });

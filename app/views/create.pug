@@ -1,0 +1,56 @@
+extend layouts/base.pug
+
+include modal_mixin.pug
+
+block content
+    .container
+        .shadow-box
+            .flex-column
+                .input-group.mb-3
+                    label.input-label Title
+                    input#title(type="text")
+                    label.invalid-tooltip 제목을 입력해주세요.
+                .input-group.mb-3
+                    label#input-label Tags
+                    input#tags(type="text")
+                .input-group.mb-3
+                    label#input-label Content
+                    textarea#content(rows=30)
+                .flex-row.justify-content-end
+                    div
+                        button.button-secondary.ml-2#cancel-button(data-toggle="modal", data-target-modal="#cancel-confirm-modal") Cancel
+                        button.button-primary#save-button Save
+    +ConfirmModal("cancel-confirm-modal", "confirm-cancel-button", "작성을 취소하겠습니까?", "Exit", false, "지금까지의 작성내용은 저장되지 않습니다.")
+    script(src="/static/scripts/modal.js")
+    script(src="/static/scripts/toast.js") 
+    script.
+        $(() => {
+            const title = $("#title");
+            const tags = $("#tags");
+            const content = $("#content");
+
+            $("#confirm-cancel-button").on("click", () => {
+                window.location.assign("/" + post_id);
+            });
+
+            $("#save-button").on("click", () => {
+                title.parent().toggleClass("invalid", title.val().length == 0);
+
+                if (title.val().length == 0) { title.focus(); return; }
+
+                let postData = {
+                    post_name: title.val(),
+                    post_tags: tags.val().split(' ').filter((value) => value.startsWith('#')).map((value) => value.slice(1)),
+                    post_content: content.val()
+                };
+
+                $.ajax("/api/posts", {
+                    method: "POST",
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    data: JSON.stringify(postData)
+                })
+                .done((data) => window.location.assign(data.post_url))
+                .fail(() => toast.error("게시글을 만드는데 실패하였습니다."));
+            });
+        });

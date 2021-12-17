@@ -1,0 +1,70 @@
+extend layouts/base.pug
+
+include modal_mixin.pug
+
+block content
+    .container#editor(data-post-id=id)
+        .shadow-box
+            .flex-column
+                .input-group.mb-3
+                    label.input-label Title
+                    input#title(type="text", value=name)
+                    label.invalid-tooltip 제목을 입력해주세요.
+                .input-group.mb-3
+                    label#input-label Tags
+                    input#tags(type="text", value=tags)
+                .input-group.mb-3
+                    label#input-label Content
+                    textarea#content(rows=30)= content
+                .flex-row.justify-content-between
+                    button.button-error#delete-button(data-toggle="modal", data-target-modal="#delete-confirm-modal") Delete 
+                    div
+                        button.button-secondary.ml-2#cancel-button(data-toggle="modal", data-target-modal="#cancel-confirm-modal") Cancel
+                        button.button-primary#save-button Save
+    +ConfirmModal("cancel-confirm-modal", "confirm-cancel-button", "작성을 취소하겠습니까?", "Continue", false, "지금까지의 작성내용은 저장되지 않습니다.")
+    +ConfirmModal("delete-confirm-modal", "confirm-delete-button", "작성을 취소하겠습니까?", "Continue", true, "이 작업은 취소할 수 없습니다.")
+    script(src="/static/scripts/modal.js")
+    script(src="/static/scripts/toast.js") 
+    script.
+        $(() => {
+            const title = $("#title");
+            const tags = $("#tags");
+            const content = $("#content");
+            const post_id = $("#editor").data("post-id");
+
+            $("#save-button").on("click", () => {
+                title.parent().toggleClass("invalid", title.val().length == 0);
+
+                if (title.val().length == 0) { title.focus(); return; }
+
+                let postData = {
+                    post_name: title.val(),
+                    post_tags: tags.val().split(' ').filter((value) => value.startsWith('#')).map((value) => value.slice(1)),
+                    post_content: content.val()
+                };
+
+                $.ajax("/api/posts/" + post_id, {
+                    method: "POST",
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    data: JSON.stringify(postData)
+                })
+                .done((data) => window.location.assign(data.post_url))
+                .fail(() => toast.error("게시글을 수정하는데 실패하였습니다."));
+            });
+
+            $("#confirm-cancel-button").on("click", () => {
+                window.location.assign("/" + post_id);
+            });
+
+            $("#confirm-delete-button").on("click", () => {
+                $.ajax("/api/posts/" + post_id, {
+                    method: "DELETE"
+                })
+                .done(() => {
+                    window.alert("게시글을 삭제하였습니다.");
+                    window.location.assign("/");
+                })
+                .fail(() => toast.error("게시글을 삭제하는데 실패하였습니다.", 5000))
+            });
+        });

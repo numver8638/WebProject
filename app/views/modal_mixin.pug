@@ -1,0 +1,17 @@
+mixin ConfirmModal(id, button_id, title, button_message, negate=false, message=undefined)
+    .modal(id!=id)
+        .modal-content
+            .modal-header.flex-row.justify-content-between
+                h4.modal-title.mr-3= title
+                button.close: span &times;
+            .modal-body
+                if block
+                    block
+                else
+                    p= message
+            .modal-footer.flex-row.justify-content-end
+                button.button-secondary(data-toggle="modal", data-target-modal= "#"+id) Cancel
+                if negate
+                    button.button-error(id!=button_id)= button_message
+                else
+                    button.button-primary(id!=button_id)= button_message

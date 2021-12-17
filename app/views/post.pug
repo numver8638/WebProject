@@ -1,0 +1,178 @@
+extends layouts/base.pug
+
+include modal_mixin.pug
+
+block content
+    .container#post-container(data-post-id=id)
+        .post.mb-5
+            // Post Header
+            .post-header
+                h1.post-title= name
+                img.rounded-image.mr-5(width="70" height="70" style="display: block; margin: 0 auto 0 auto;" src=writer.profileUrl)
+                h5.post-writer #{writer.nickname} | #{writtenTime.toDateString()}
+                .flex-row.justify-content-center
+                    each tag in tags
+                        label.mx-1 ##{tag}
+                if user.uid === writer.uid && user.hasPermission(Permission.USER_POSTS_UPDATE)
+                    .flex-row.justify-content-end
+                        a(href='/' + id + '/edit'): span.icon-edit Edit
+            // Post Content
+            .post-body.mb-10!= content
+            // Comments
+            div.box
+                label: h3 Comments
+                .mb-5.px-3
+                    if user.isAnnonymous
+                        h5 댓글을 작성하려면 로그인 해주세요.
+                    else if !user.hasPermission(Permission.USER_COMMENTS_CREATE)
+                        h5 댓글 작성 권한이 없습니다. 관리자에게 문의해주세요.
+                    else
+                        .input-group.flex-row
+                            textarea#comment
+                            button.button-bordered-primary#comment-upload-button Upload
+                            label.invalid-tooltip 댓글 내용을 입력해주세요.
+                div#comment-list
+    +ConfirmModal('delete-comment-confirm-modal', "confirm-delete-button", "댓글을 삭제하겠습니까?", "Delete", true, "이 작업은 취소할 수 없습니다.")
+    script(src="/static/scripts/toast.js")
+    script(src="/static/scripts/modal.js")
+    script(src="/static/scripts/utils.js")
+    script.
+        $(() => {
+            const comment_list = $("#comment-list");
+            const comment = $("#comment");
+            const post_id = $("#post-container").data("post-id");
+            let loading_bar = $("<h5 id='loading-bar' style='text-align: center;'>Loading...</h5>");
+
+            const createHtml = (data) => {
+                let div = $("<div class='shadow-box mb-3 flex-row justify-content-start'>");
+                let image = $("<img width='70' height='70' class='rounded-image' style='margin: 0 10px auto 0;'>").attr("src", data.comment_writer_profile);
+                let group = $("<div>")
+                    .append($("<h5>").text(`${data.comment_writer} | ${new Date(data.comment_written_time).toDateString()}`))
+                    .append($("<p>").text(data.comment_content));
+                
+                div.append(image).append(group);
+
+                if (data.can_edit || data.can_delete) {
+                    let buttonGroup = $("<div class='flex-column' style='margin: 0px 0px auto auto;'>");
+                    
+                    if (data.can_edit) {
+                        let editButton = $("<button class='button-secondary'><span class='icon-edit'></span></a>");
+                        editButton.data("comment-id", data.comment_id);
+                        buttonGroup.append(editButton);
+
+                        editButton.on("click", () => {
+                            $.getJSON("/api/posts/" + post_id + "/comments/" + data.comment_id, (data) => {
+                                comment.val(data.comment_content);
+                                comment.data("comment-id", data.comment_id);
+                                comment.focus();
+                            })
+                            .fail(() => toast.error("댓글 정보를 가져오는데 실패하였습니다.", 5000));
+                        });
+                    }
+
+                    if (data.can_delete) {
+                        let deleteButton = $("<button class='button-secondary'><span class='icon-delete'></span></a>");
+                        deleteButton.data("comment-id", data.comment_id)
+                                    .attr("data-toggle", "modal")
+                                    .attr("data-target-modal", "#delete-comment-confirm-modal")
+                        buttonGroup.append(deleteButton);
+                    }
+
+                    div.append(buttonGroup);
+                }
+
+                return div;
+            };
+
+            $("#delete-comment-confirm-modal").on("modal.shown", (e, triggered) => {
+                $(e.target).data("comment-id", triggered.data("comment-id"));
+            });
+
+            const loadComments = (reload = false) => {
+                if (reload) {
+                    comment_list.empty();
+                }
+
+                comment_list.append(loading_bar);
+
+                let start = reload ? 0 : (comment_list.data('count') || 0);
+
+                $.getJSON("/api/posts/" + post_id + '/comments', {
+                    start: start,
+                    count: 10   
+                }, (data) => {
+                    if (data.start === data.count && data.start === 0) {
+                        comment_list.append($("<h5 style='text-align: center;'>댓글이 없습니다.</h5>"));
+                        return;
+                    }
+
+                    for (let comment of data.comments) {
+                        comment_list.append(createHtml(comment));
+                    }
+
+                    if (data.count > 0) {
+                        utils.observe(comment_list.children().last()[0], loadComments);
+                    }
+
+                    comment_list.data("count", data.start + data.count);
+                })
+                .fail(() => toast.warning("댓글을 가져오는데 실패하였습니다.", 5000))
+                .always(() => {
+                    loading_bar = $("#loading-bar").detach();
+                });
+            };
+
+            // Install event handlers
+            $("#comment-upload-button").on("click", () => {
+                const comment_id = comment.data("comment-id");
+                const edit = (comment_id !== undefined);
+
+                const method = edit ? "PUT" : "POST";
+                let url = "/api/posts/" + post_id + "/comments";
+
+                if (edit) { url += ("/" + comment_id); }
+
+                let invalid = (comment.val().length == 0);
+                comment.parent().toggleClass("invalid", invalid);
+                if (invalid) { return; }
+
+                // upload comment
+                $.ajax(url, {
+                    method: method,
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    data: JSON.stringify({ comment_content: comment.val() })
+                })
+                .done(() => {
+                    toast.info(edit ? "댓글을 수정했습니다." : "댓글을 만들었습니다.", 3000);
+
+                    // Clear comment
+                    comment.val("");
+
+                    // reload
+                    loadComments(true);
+                })
+                .fail(() => {
+                    toast.error(edit ? "댓글을 수정하지 못했습니다." : "댓글을 만들지 못했습니다.", 5000);
+                });
+            });
+
+            $("#confirm-delete-button").on("click", () => {
+                const modal = $("#delete-comment-confirm-modal");
+                const comment_id = modal.data("comment-id");
+
+                if (!comment_id) { return; }
+
+                $.ajax("/api/posts/" + post_id + "/comments/" + comment_id, {
+                    method: "DELETE"
+                })
+                .done(() => {
+                    modal.toggleClass("active");
+                    toast.info("댓글을 삭제했습니다.", 3000);
+                    loadComments(true);
+                })
+                .fail(() => toast.error("댓글을 삭제하지 못했습니다.", 5000));
+            });
+
+            loadComments();
+        }); 

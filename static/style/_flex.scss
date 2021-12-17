@@ -1,0 +1,27 @@
+$directions: (row, row-reverse, column, column-reverse);
+$justfies: (
+    start: flex-start,
+    end: flex-end,
+    center: center,
+    between: space-between,
+    around: space-around,
+    evenly: space-evenly,
+);
+
+@each $name in $directions {
+    .flex-#{$name} {
+        display: flex;
+        flex-direction: $name;
+    }
+
+    .flex-inline-#{$name} {
+        display: inline-flex;
+        flex-direction: $name;
+    }
+}
+
+@each $items in $justfies {
+    .justify-content-#{nth($items, 1)} {
+        justify-content: nth($items, 2);
+    }
+}

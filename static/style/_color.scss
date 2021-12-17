@@ -1,0 +1,28 @@
+$white: #FFF;
+$black: #000;
+
+$color-light: $white;
+
+$color-text: #222;
+
+$color-shadow: rgba($black, 0.2);
+
+$color-primary: #00c8f0;
+$color-primary-border: darken($color-primary, 10%);
+$color-primary-background: lighten($color-primary, 20%);
+
+$color-info: #50c81e;
+$color-info-border: darken($color-info, 10%);
+$color-info-background: lighten($color-info, 20%);
+
+$color-success: #1482ff;
+$color-success-border: darken($color-success, 10%);
+$color-success-background: lighten($color-success, 20%);
+
+$color-warning: #ff5a0a;
+$color-warning-border: darken($color-warning, 10%);
+$color-warning-background: lighten($color-warning, 20%);
+
+$color-error: #EE2211;
+$color-error-border: darken($color-error, 10%);
+$color-error-background: lighten($color-error, 20%);

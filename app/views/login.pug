@@ -1,0 +1,79 @@
+extends layouts/base_without_menu.pug
+
+block content
+    .container.flex-row.justify-content-center
+        .shadow-box(style={'max-width': '350px', 'width': '100%'})
+            h2 Login
+            .flex-column
+                .input-group.mb-3
+                    label.input-label ID
+                    input#id(type="text")
+                    label.invalid-tooltip 아이디를 입력해주세요.
+                .input-group.mb-3
+                    label.input-label Password
+                    input#pw(type="password")
+                    label.invalid-tooltip 비밀번호를 입력해주세요.
+                div#login-error-message
+                .flex-row.justify-content-end
+                    a.button-secondary.mr-1(role="button", href="/register") Register
+                    button.button-primary#login-button Login
+    script(src='/static/scripts/sha256.min.js')
+    script(src='/static/scripts/jsencrypt.min.js')
+    script(src="/static/scripts/utils.js")
+    script(src="/static/scripts/toast.js")
+    script.
+        $(() => {
+            const id = $("#id");
+            const pw = $("#pw");
+            const login_msg = $("#login-error-message");
+
+            $(document).on("keypress", (e) => {
+                if (e.keyCode == 13) {
+                    $("#login-button").click();
+                }
+            });
+            
+            $('#login-button').on('click', () => {
+                id.parent().toggleClass("invalid", id.val().length == 0);
+                pw.parent().toggleClass("invalid", pw.val().length == 0);
+                login_msg.empty();
+            
+                if (id.val().length > 0 && pw.val().length > 0) {            
+                    let request_id = utils.generateID();
+                    $.getJSON('/api/auth/request_token', { request_id: request_id }, (data) => {
+                        let encrypt = new JSEncrypt();
+                        encrypt.setKey(data.key);
+            
+                        let request = JSON.stringify({
+                            request_id: request_id,
+                            user_id: id.val(),
+                            user_pw: sha256(pw.val())
+                        });
+                        let encrypted_data = encrypt.encrypt(request);
+            
+                        $.ajax("/api/auth/login", {
+                            method: "POST",
+                            dataType: "JSON",
+                            contentType: "application/json",
+                            data: JSON.stringify({ data: encrypted_data, token: data.token }),
+                            success: (data, status, xhr) => {
+                                localStorage.setItem('AccessToken', data.access_token)
+                                window.location.assign("/");
+                            },
+                            error: (xhr, status, error) => {
+                                let content = $("<p class='alert alert-error'>");
+
+                                if (xhr.status == 403) {
+                                    content.text("존재하지 않는 아이디거나 비밀번호가 다릅니다.");
+                                }                       
+                                else {
+                                    content.text("로그인에 실패했습니다.");
+                                }         
+
+                                login_msg.append(content);
+                            }
+                        });
+                    });
+                }
+            });
+        });

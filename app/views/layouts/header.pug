@@ -1,0 +1,24 @@
+header
+    nav.navbar
+        a.navbar-title(href="/")= sitename
+        ul.navbar-align-right
+            if user.isAnnonymous
+                li.navbar-item
+                    a(href="/login") Login
+            else
+                li.navbar-item.dropdown
+                    a.dropdown-button(href="#")
+                        img.avartar-image(src=user.profileUrl)
+                    .dropdown-content
+                        a.dropdown-item Hello, username
+                        if user.hasPermission(Permission.USER_POSTS_CREATE)
+                            a.dropdown-item(href='/create')
+                                span.icon-edit Create Post
+                        a.dropdown-item(href="/settings")
+                            span.icon-setting Settings
+                        if user.hasPermission(Permission.ADMIN)
+                            a.dropdown-item(href="/admin")
+                                span.icon-setting Admin
+                        hr.dropdown-separator
+                        a.dropdown-item(href="/logout")
+                            span.icon-logout Logout

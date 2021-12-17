@@ -1,0 +1,8 @@
+extends layouts/base_without_menu.pug
+
+block content
+    .container.flex-row.justify-content-center
+        .shadow-box(style={'max-width': '400px', 'width': '100%'})
+            h2.mb-3 Oops!
+            p There was a problem.
+            p DEV: #{error.message}

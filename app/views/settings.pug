@@ -1,0 +1,222 @@
+extends layouts/base.pug
+
+include modal_mixin.pug
+
+block content
+    .container
+        .shadow-box.flex-column
+            h2 Settings
+            hr
+            div(style="display: grid; grid-template-columns: fit-content(0) auto;")
+                div.mr-5
+                    image#profile(width=150, height=150, class="rounded-image" style="margin: 0px auto 10px auto; display: block;" src=user.profileUrl)
+                    .flex-row.justify-content-between
+                        button.button-secondary#reset-profile-button Reset
+                        label.button-primary(for="profile-image") Upload
+                        input#profile-image(type="file", style="display: none;", accept="image/png,image/jpeg")
+                div
+                    .input-group.mb-3
+                        label.input-label ID
+                        input(type="text", value=user.id, readonly=true)
+                    .input-group.mb-3
+                        label.input-label Nickname
+                        input(type="text", value=user.nickname, readonly=true)
+                    .input-group.mb-10
+                        label.input-label Registeration Date
+                        input(type="text", value=user.registeredDate.toDateString(), readonly=true)
+                    .flex-row.justify-content-between.mb-10
+                        label Change Password
+                        button.button-primary#change-password-button(data-toggle="modal", data-target-modal="#change-password-modal") Change
+            .danger-zone
+                h4 Danger Zone
+                .flex-row.justify-content-between
+                    label Delete Account
+                    button.button-error#delete-account-button(data-toggle="modal", data-target-modal="#delete-account-modal") Delete
+    +ConfirmModal("change-password-modal", "confirm-change-password-button", "비밀번호 변경", "Change", false)
+        .input-group.mb-3
+            label.input-label Old Password
+            input#old-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label New Password
+            input#new-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label Check Password
+            input#new-password-check(type="password")
+            label.valid-tooltip 비밀번호가 일치합니다 
+            label.invalid-tooltip 비밀번호가 다릅니다.
+    +ConfirmModal("delete-account-modal", "confirm-delete-account-button", "유저 삭제", "Change", true)
+        h5 계정을 삭제하시겠습니까? 이 행동은 취소할 수 없습니다.
+        h5 계정을 삭제하려면 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label Password
+            input#confirm-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+    script(src="/static/scripts/jsencrypt.min.js") 
+    script(src="/static/scripts/sha256.min.js") 
+    script(src="/static/scripts/toast.js")
+    script(src="/static/scripts/modal.js") 
+    script(src="/static/scripts/utils.js") 
+    script.
+        $(() => {
+            const user_uid = "#{user.uid}";
+            const old_password = $("#old-password");
+            const new_password = $("#new-password");
+            const new_password_check = $("#new-password-check");
+
+            $("#reset-profile-button").on("click", () => {
+                $.ajax({
+                    url: "/api/users/" + user_uid,
+                    method: "PUT",
+                    contentType: "application/json",
+                    data: JSON.stringify({ user_profile: null })
+                })
+                .done((data) => {
+                    toast.info("프로필 사진을 초기화하였습니다.", 3000);
+                    $("#profile").attr("src", "/static/images/default_user.svg");
+                })
+                .fail((err) => toast.error("프로필 사진 업로드에 실패하였습니다.", 5000));
+            });
+
+            $("#profile-image").on("change", () => {
+                let file = $("#profile-image")[0].files[0];
+
+                if (file === undefined) {
+                    toast.warning("이미지를 선택해주세요.", 5000);
+                    return;
+                }
+
+                let data = new FormData();
+                data.set("image", file);
+
+                $.ajax({
+                    url: "/api/resources/upload",
+                    method: "POST",
+                    dataType: "JSON",
+                    data: data,
+                    contentType: false,
+                    processData: false
+                })
+                .done((data) => {
+                    $.ajax({
+                        url: "/api/users/" + user_uid,
+                        method: "PUT",
+                        contentType: "application/json",
+                        data: JSON.stringify({ user_profile: data.url })
+                    })
+                    .done(() => {
+                        toast.info("프로필 사진을 업로드했습니다.", 3000);
+                        $("#profile").attr("src", data.url);
+                    })
+                    .fail((err) => toast.error("프로필 사진 업로드에 실패하였습니다.", 5000));
+                })
+                .fail((err) => toast.error("프로필 사진 업로드에 실패하였습니다.", 5000));
+            });
+
+            new_password_check.on("keyup", () => {
+                let empty = new_password_check.val().length == 0;
+                let valid = (new_password.val() === new_password_check.val());
+
+                new_password_check.parent().toggleClass("invalid", !empty && !valid);
+                new_password_check.parent().toggleClass("valid", !empty && valid);
+            });
+
+            $("#change-password-modal").on("modal.shown", () => {
+                old_password.val("");
+                old_password.removeClass("invalid");
+                new_password.val("");
+                new_password.removeClass("invalid");
+                new_password_check.val("");
+                new_password_check.removeClass("valid");
+                new_password_check.removeClass("invalid");
+            });
+
+            $("#confirm-change-password-button").on("click", () => {
+                old_password.parent().toggleClass("invalid", (old_password.val() == 0));
+                new_password.parent().toggleClass("invalid", (new_password.val() == 0));
+
+                if (old_password.val().length > 0
+                 && new_password.val().length > 0
+                 && new_password.val() === new_password_check.val()) {
+                    let request_id = utils.generateID();
+                    $.getJSON('/api/auth/request_token', { request_id: request_id }, (data) => {
+                        let encrypt = new JSEncrypt();
+                        encrypt.setKey(data.key);
+            
+                        let request = JSON.stringify({
+                            request_id: request_id,
+                            old_pw: sha256(old_password.val()),
+                            new_pw: sha256(new_password.val())
+                        });
+                        let encrypted_data = encrypt.encrypt(request);
+            
+                        $.ajax("/api/auth/update_password", {
+                            method: "POST",
+                            dataType: "JSON",
+                            contentType: "application/json",
+                            data: JSON.stringify({ data: encrypted_data, token: data.token })
+                        })
+                        .done(() => {
+                            toast.info("비밀번호를 변경하였습니다.", 3000);
+                        })
+                        .fail((xhr) => {
+                            if (xhr.status == 403) {
+                                toast.error("비밀번호 변경에 실패하였습니다: 비밀번호가 일치하지 않습니다.", 5000);
+                            }
+                            else {
+                                toast.error("비밀번호 변경에 실패하였습니다.", 5000);
+                            }
+                        })
+                        .always(() => {
+                            $("#change-password-modal").removeClass("active")
+                        });
+                    });
+                }
+            });
+
+            $("#delete-account-modal").on("modal.shown", () => {
+                $("#confirm-password").val("");
+            });
+
+            $("#confirm-delete-account-button").on("click", () => {
+                const confirm_password = $("#confirm-password");
+                
+                confirm_password.parent().toggleClass("invalid", (confirm_password.val().length == 0));
+                if (confirm_password.val().length == 0) {
+                    return;
+                }
+
+                let request_id = utils.generateID();
+                $.getJSON('/api/auth/request_token', { request_id: request_id }, (data) => {
+                    let encrypt = new JSEncrypt();
+                    encrypt.setKey(data.key);
+        
+                    let request = JSON.stringify({
+                        request_id: request_id,
+                        password: sha256(confirm_password.val())
+                    });
+                    let encrypted_data = encrypt.encrypt(request);
+        
+                    $.ajax("/api/users/" + user_uid, {
+                        method: "DELETE",
+                        dataType: "JSON",
+                        contentType: "application/json",
+                        data: JSON.stringify({ data: encrypted_data, token: data.token })
+                    })
+                    .done(() => {
+                        window.alert("탈퇴에 성공하였습니다.");
+                        window.location.assign("/");
+                    })
+                    .fail((xhr) => {
+                        if (xhr.status == 401) {
+                            toast.error("탈퇴에 실패하였습니다: 비밀번호가 일치하지 않습니다.", 5000);
+                        }
+                        else {
+                            toast.error("탈퇴에 실패하였습니다.", 5000);
+                        }
+                        $("#delete-account-modal").removeClass("active");
+                    });
+                });
+            });
+        });

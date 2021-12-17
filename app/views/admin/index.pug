@@ -1,0 +1,212 @@
+extends ../layouts/base.pug
+
+block content
+    .container
+        .shadow-box.mb-5
+            h3 Users
+            // search bar
+            if user.hasPermission(Permission.ADMIN_USERS)
+                .input-group.row.mb-3
+                    input#user-search(type='text', placeholder='Search...')
+                    button#user-search-button: span.icon-search
+                    label.invalid-tooltip 검색어를 입력해주세요.
+                table.table
+                    thead
+                        tr
+                            th ID
+                            th Name
+                            th
+                    tfoot
+                    tbody#user-table
+                div.flex-row.justify-content-center
+                    button.button-secondary#user-pagination-prev: span &laquo;
+                    label.my-auto.mx-3#user-pagination-counter #
+                    button.button-secondary#user-pagination-next: span &raquo;
+            else
+                p.alert.alert-info 유저 정보를 볼 수 있는 권한이 없습니다.
+        .shadow-box
+            h3 Posts
+            // search bar
+            .input-group.row.mb-3
+                input#post-search(type='text', placeholder='Search...')
+                button#post-search-button: span.icon-search
+                label.invalid-tooltip 검색어를 입력해주세요.
+            table.table
+                thead
+                    tr
+                        th Name
+                        th Writer
+                        th
+                tfoot
+                tbody#post-table
+            div.flex-row.justify-content-center
+                button.button-secondary#post-pagination-prev: span &laquo;
+                label.my-auto.mx-3#post-pagination-counter #
+                button.button-secondary#post-pagination-next: span &raquo;
+    script(src="/static/scripts/toast.js")
+    if user.hasPermission(Permission.ADMIN_USERS)
+        script.
+            $(() => {
+                const user_table = $("#user-table");
+
+                const buildUserRow = (data) => {
+                    const row = $("<tr>");
+                    const link = $("<a>").attr("href", "/admin/users/" + data.user_uid).append($("<span class='icon-edit'>"));
+                    row.append($("<td>").text(data.user_id)).append($("<td>").text(data.user_nickname)).append($("<td>").append(link));
+
+                    return row;
+                };
+
+                const loadUsers = () => {
+                    let page = (user_table.data("page") || 1) - 1;
+                    let condition = user_table.data("condition") || null;
+                    let args = {
+                        start: page * 10,
+                        count: 10
+                    };
+
+                    if (condition != null) {
+                        args.condition = condition;
+                    }
+
+                    $.getJSON("/api/users", args, (data) => {
+                        user_table.empty();    
+                        $("#user-pagination-counter").text(page + 1);
+                        $("#user-pagination-prev").attr("disabled", (page < 1));
+                        $("#user-pagination-next").attr("disabled", (data.count < 10));
+
+                        if (data.start === data.count && data.start === 0) {
+                            user_table.append($("<tr><td>유저가 존재하지 않습니다.</td></tr>"));
+                            return;
+                        }
+
+                        for (let user of data.users) {
+                            user_table.append(buildUserRow(user))
+                        }
+                    })
+                    .fail((xhr) => {
+                        if (xhr.status != 403) {
+                            toast.error("유저 정보를 가져오는데 실패하였습니다.", 5000)
+                        }
+                    });
+                };
+
+                $("#user-pagination-prev").on("click", () => {
+                    let page = user_table.data("page") || 1;
+                    user_table.data("page", page - 1);
+                    loadUsers();
+                });
+
+                $("#user-pagination-next").on("click", () => {
+                    let page = user_table.data("page") || 0;
+                    user_table.data("page", page + 1);
+                    loadUsers();
+                });
+
+                $("#user-search").on("keydown", (e) => {
+                    if (e.keyCode == 13) {
+                        $("#user-search-button").click();
+                    }
+                    else if (e.keyCode == 27) {
+                        $("#user-search").val("");
+                        user_table.data("condition", null);
+                        user_table.focusout();
+                        loadUsers();
+                    }
+                });
+
+                $("#user-search-button").on("click", () => {
+                    const search = $("#user-search");
+                    const invalid = (search.val().length == 0);
+
+                    search.parent().toggleClass("invalid", invalid);
+                    if (invalid) { return; }
+
+                    user_table.data("condition", search.val());
+                    loadUsers();
+                });
+
+                loadUsers();
+            });
+
+    script.
+        $(() => {
+            const post_table = $("#post-table");
+
+            const buildPostRow = (data) => {
+                const row = $("<tr>");
+                const link = $("<a>").attr("href", "/admin/posts/" + data.post_id).append($("<span class='icon-edit'>"));
+                row.append($("<td>").text(data.post_name)).append($("<td>").text(data.post_writer)).append($("<td>").append(link));
+
+                return row;
+            };
+
+            const loadPosts = () => {
+                let page = (post_table.data("page") || 1) - 1;
+                let search = post_table.data("search") || null;
+                let args = {
+                    start: page * 10,
+                    count: 10
+                };
+                const url = (search == null) ? "/api/posts" : "/api/posts/search";
+
+                if (search != null) {
+                    args.keyword = search;
+                }
+
+                $.getJSON(url, args, (data) => {
+                    post_table.empty();
+
+                    $("#post-pagination-counter").text(page + 1);
+                    $("#post-pagination-prev").attr("disabled", (page < 1));
+                    $("#post-pagination-next").attr("disabled", (data.count < 10));
+                    
+                    if (data.start === data.count && data.start === 0) {
+                        post_table.append($("<tr><td>게시물이 존재하지 않습니다.</td></tr>"));
+                        return;
+                    }
+
+                    for (let post of data.posts) {
+                        post_table.append(buildPostRow(post))
+                    }
+                })
+                .fail(() => toast.error("게시물을 가져오는데 실패하였습니다.", 5000));
+            };
+
+            $("#post-pagination-prev").on("click", () => {
+                let page = post_table.data("page") || 1;
+                post_table.data("page", page - 1);
+                loadPosts();
+            });
+
+            $("#post-pagination-next").on("click", () => {
+                let page = post_table.data("page") || 0;
+                post_table.data("page", page + 1);
+                loadPosts();
+            });
+
+            $("#post-search").on("keydown", (e) => {
+                if (e.keyCode == 13) {
+                    $("#post-search-button").click();
+                }
+                else if (e.keyCode == 27) {
+                    $("#post-search").val("");
+                    post_table.data("search", null);
+                    post_table.focusout();
+                    loadPosts();
+                }
+            });
+
+            $("#post-search-button").on("click", () => {
+                const search = $("#post-search");
+                const invalid = (search.val().length == 0);
+
+                search.parent().toggleClass("invalid", invalid);
+                if (invalid) { return; }
+
+                post_table.data("search", search.val());
+                loadPosts();
+            });
+
+            loadPosts();
+        });

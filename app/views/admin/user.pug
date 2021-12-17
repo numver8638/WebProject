@@ -1,0 +1,318 @@
+extends ../layouts/base.pug
+
+include ../modal_mixin.pug
+
+block content
+    .container
+        .shadow-box
+            div.flex-row.justify-content-start
+                a.button-secondary.my-auto(href="/admin"): span.icon-arrow
+                h2 User Settings
+            hr
+            label: h4 User Information
+            div(style="display: grid; grid-template-columns: fit-content(0) auto;")
+                div.mr-5
+                    image#profile(width=150, height=150, class="rounded-image" style="margin: 0px auto 10px auto; display: block;" src=target_user.profileUrl)
+                div
+                    .input-group.mb-3
+                        label.input-label ID
+                        input(type="text", value=target_user.id, readonly=true)
+                    .input-group.mb-3
+                        label.input-label UID
+                        input(type="text", value=target_user.uid, readonly=true)
+                    .input-group.mb-3
+                        label.input-label Nickname
+                        input(type="text", value=target_user.nickname, readonly=true)
+                    .input-group.mb-10
+                        label.input-label Registeration Date
+                        input(type="text", value=target_user.registeredDate.toDateString(), readonly=true)
+                    .flex-row.justify-content-between.mb-10
+                        label Change Password
+                        button.button-primary#change-password-button(data-toggle="modal", data-target-modal="#change-password-modal") Change
+            hr
+            div.mb-5
+                label: h4 Permissions
+                if user.hasPermission(Permission.ADMIN_PERMISSIONS)
+                    table.table.mb-3
+                        thead
+                            tr
+                                th Permission
+                                th Remove
+                        tfoot
+                        tbody#permission-table
+                    label Add Permission
+                    if user.hasPermission(Permission.ADMIN_PERMISSIONS_UPDATE)
+                        .input-group.flex-row.mb-3
+                            input#permission(type="text", placeholder="Enter Permission Key...")
+                            button.button-bordered-primary#add-permission-button(type="button") Add
+                            label.invalid-tooltip 권한 키를 입력해주세요.
+                    else
+                        p.alert.alert-info 권한을 수정할 수 있는 권한이 없습니다.
+                else
+                    p.alert.alert-info 권한 목록을 볼 수 있는 권한이 없습니다.
+            hr
+            label: h4 Danger Zone
+            .danger-zone
+                .flex-row.justify-content-between.mb-3
+                    label Force Logout
+                    if user.hasPermission(Permission.ADMIN_AUTH_FORCE_LOGOUT)
+                        button.button-error#force-logout-button(data-toggle="modal", data-target-modal="#force-logout-modal") Logout
+                    else
+                        label 권한이 없습니다.
+                .flex-row.justify-content-between
+                    label Delete Account
+                    if user.hasPermission(Permission.ADMIN_AUTH_UPDATE_PASSWORD)
+                        button.button-error#delete-button(data-toggle="modal", data-target-modal="#delete-account-modal") Delete
+                    else
+                        label 권한이 없습니다.
+    +ConfirmModal("change-password-modal", "confirm-change-password-button", "비밀번호 변경", "Change", false)
+        .input-group.mb-3
+            label.input-label Admin Password
+            input#admin-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label New Password
+            input#new-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label Check Password
+            input#new-password-check(type="password")
+            label.valid-tooltip 비밀번호가 일치합니다 
+            label.invalid-tooltip 비밀번호가 다릅니다.
+    +ConfirmModal("delete-account-modal", "confirm-delete-account-button", "유저 삭제", "Change", true)
+        h5 계정을 삭제하시겠습니까? 이 행동은 취소할 수 없습니다.
+        h5 계정을 삭제하려면 비밀번호를 입력해주세요.
+        .input-group.mb-3
+            label.input-label Password
+            input#confirm-password(type="password")
+            label.invalid-tooltip 비밀번호를 입력해주세요.
+    +ConfirmModal("force-logout-modal", "confirm-force-logout-button", "강제 로그아웃", "Logout", true, "유저를 강제 로그아웃 하겠습니까?")
+    script(src="/static/scripts/jsencrypt.min.js") 
+    script(src="/static/scripts/sha256.min.js") 
+    script(src="/static/scripts/toast.js")
+    script(src="/static/scripts/modal.js") 
+    script(src="/static/scripts/utils.js") 
+    script.
+        $(() => {
+            const user_uid = "#{target_user.uid}";
+            const admin_password = $("#admin-password");
+            const new_password = $("#new-password");
+            const new_password_check = $("#new-password-check");
+
+            const permission = $("#permission");
+            const permission_table = $("#permission-table");
+
+            const deletePermission = (perm, self) => {
+                const data = {
+                    permissions: [perm]
+                };
+
+                $.ajax("/api/users/" + user_uid + "/permission", {
+                    method: "DELETE",
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    data: JSON.stringify(data)
+                })
+                .done(() => {
+                    toast.info("권한을 삭제하였습니다.", 3000);
+                    self.remove();
+                })
+                .fail((xhr) => {
+                    // Ignore FORBIDDEN
+                    if (xhr.status != 403) {
+                        toast.error("권한을 삭제하는데 실패했습니다.", 5000);
+                    }
+                });
+            };
+
+            const loadPermissions = () => {
+                $.getJSON("/api/users/" + user_uid + "/permission", (data) => {
+                    permission_table.empty();
+
+                    for (const key of data.user_permissions) {
+                        let row = $("<tr>");
+
+                        row.append($("<td>").text(key));
+                        if (data.can_update) {
+                            const editButton = $("<a href='#'><span class='icon-delete'></span></a>");
+                            row.append($("<td>").append(editButton));
+
+                            editButton.on("click", () => {
+                                deletePermission(key, row);
+                            });
+                        }
+                        else {
+                            row.append($("<td>"));
+                        }
+
+                        permission_table.append(row);
+                    }
+                })
+                .fail((xhr) => {
+                    // Ignore FORBIDDEN
+                    if (xhr.status != 403) {
+                        toast.error("권한 목록을 가져오는데 실패했습니다.", 5000);
+                    }
+                })
+            };
+
+            permission.on("keypress", (e) => {
+                if (e.keyCode == 13) {
+                    $("#add-permission-button").click();
+                }
+            })
+
+            $("#add-permission-button").on("click", () => {
+                const invalid = (permission.val().length == 0);
+                permission.parent().toggleClass("invalid", invalid);
+
+                if (invalid) { return; }
+                
+                const data = {
+                    permissions: [permission.val()]
+                };
+
+                $.ajax("/api/users/" + user_uid + "/permission", {
+                    method: "POST",
+                    dataType: "JSON",
+                    contentType: "application/json",
+                    data: JSON.stringify(data)
+                })
+                .done(() => {
+                    toast.info("권한을 추가하였습니다.", 3000);
+                    loadPermissions();
+                })
+                .fail((xhr) => {
+                    // Ignore FORBIDDEN
+                    if (xhr.status != 403) {
+                        toast.error("권한을 추가하는데 실패했습니다.", 5000);
+                    }
+                })
+                .always(() => permission.val(""));
+            });
+
+            $("#confirm-force-logout-button").on("click", () => {
+                $.ajax("/api/auth/logout/" + user_uid, {
+                    method: "GET"
+                })
+                .done(() => {
+                    toast.info("강제 로그아웃 하였습니다.", 3000);
+                })
+                .fail((xhr) => {
+                    // Ignore FORBIDDEN
+                    if (xhr.status != 403) {
+                        toast.error("강제 로그아웃에 실패하였습니다.", 5000);
+                    }
+                })
+                .always(() => $("#force-logout-modal").removeClass("active"));
+            });
+
+            new_password_check.on("keyup", () => {
+                let empty = new_password_check.val().length == 0;
+                let valid = (new_password.val() === new_password_check.val());
+
+                new_password_check.parent().toggleClass("invalid", !empty && !valid);
+                new_password_check.parent().toggleClass("valid", !empty && valid);
+            });
+
+            $("#change-password-modal").on("modal.shown", () => {
+                admin_password.val("");
+                admin_password.removeClass("invalid");
+                new_password.val("");
+                new_password.removeClass("invalid");
+                new_password_check.val("");
+                new_password_check.removeClass("valid");
+                new_password_check.removeClass("invalid");
+            });
+
+            $("#confirm-change-password-button").on("click", () => {
+                admin_password.parent().toggleClass("invalid", (admin_password.val() == 0));
+                new_password.parent().toggleClass("invalid", (new_password.val() == 0));
+
+                if (admin_password.val().length > 0
+                 && new_password.val().length > 0
+                 && new_password.val() === new_password_check.val()) {
+                    let request_id = utils.generateID();
+                    $.getJSON('/api/auth/request_token', { request_id: request_id }, (data) => {
+                        let encrypt = new JSEncrypt();
+                        encrypt.setKey(data.key);
+            
+                        let request = JSON.stringify({
+                            request_id: request_id,
+                            user_uid: user_uid,
+                            admin_pw: sha256(admin_password.val()),
+                            new_pw: sha256(new_password.val())
+                        });
+                        let encrypted_data = encrypt.encrypt(request);
+            
+                        $.ajax("/api/auth/update_password", {
+                            method: "POST",
+                            dataType: "JSON",
+                            contentType: "application/json",
+                            data: JSON.stringify({ data: encrypted_data, token: data.token })
+                        })
+                        .done(() => {
+                            toast.info("비밀번호를 변경하였습니다.", 3000);
+                        })
+                        .fail((xhr) => {
+                            if (xhr.status == 403) {
+                                toast.error("비밀번호 변경에 실패하였습니다: 비밀번호가 일치하지 않습니다.", 5000);
+                            }
+                            else {
+                                toast.error("비밀번호 변경에 실패하였습니다.", 5000);
+                            }
+                        })
+                        .always(() => {
+                            $("#change-password-modal").removeClass("active");
+                        });
+                    });
+                }
+            });
+
+            $("#delete-account-modal").on("modal.shown", () => {
+                $("#confirm-password").val("");
+            });
+
+            $("#confirm-delete-account-button").on("click", () => {
+                const confirm_password = $("#confirm-password");
+                
+                confirm_password.parent().toggleClass("invalid", (confirm_password.val().length == 0));
+                if (confirm_password.val().length == 0) {
+                    return;
+                }
+
+                let request_id = utils.generateID();
+                $.getJSON('/api/auth/request_token', { request_id: request_id }, (data) => {
+                    let encrypt = new JSEncrypt();
+                    encrypt.setKey(data.key);
+        
+                    let request = JSON.stringify({
+                        request_id: request_id,
+                        password: sha256(confirm_password.val())
+                    });
+                    let encrypted_data = encrypt.encrypt(request);
+        
+                    $.ajax("/api/users/" + user_uid, {
+                        method: "DELETE",
+                        dataType: "JSON",
+                        contentType: "application/json",
+                        data: JSON.stringify({ data: encrypted_data, token: data.token })
+                    })
+                    .done(() => {
+                        window.alert("탈퇴에 성공하였습니다.");
+                        window.location.assign("/admin");
+                    })
+                    .fail((xhr) => {
+                        if (xhr.status == 401) {
+                            toast.error("탈퇴에 실패하였습니다: 비밀번호가 일치하지 않습니다.", 5000);
+                        }
+                        else {
+                            toast.error("탈퇴에 실패하였습니다.", 5000);
+                        }
+                        $("#delete-account-modal").removeClass("active");
+                    });
+                });
+            });
+
+            loadPermissions();
+        });
